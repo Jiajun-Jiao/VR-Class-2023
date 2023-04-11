@@ -117,7 +117,7 @@ export const init = async model => {
                MA = MB;                    // INITIALIZE PREVIOUS MATRIX.
             else
 	       MP = cg.mMultiply(cg.mMultiply(MB, cg.mInverse(MA)), MP);
-
+ 
 	    MA = MB;                       // REMEMBER PREVIOUS MATRIX.
          }
          rightTriggerPrev = rightTrigger;

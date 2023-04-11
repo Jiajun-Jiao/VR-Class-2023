@@ -1,3 +1,4 @@
+import * as cg from "../render/core/cg.js";
 import { g2 } from "../util/g2.js";
 import { controllerMatrix, buttonState, joyStickState } from "../render/core/controllerInput.js";
 
@@ -92,8 +93,31 @@ export const init = async model => {
          }
       })
    }
+   
+   let handPanel = model.add('cube').texture('media/textures/colors.jpg').opacity(.01);
+   let Aswitch = false;
+   let Condswitch = false;
       
    model.move(0,1.5,0).scale(.3).animate(() => {
-      whiteBoard.hud().move(0, -5, -5).scale(10, 6, .0001);
+      whiteBoard.hud().move(0, -5, -5).scale(10, 6, .0001).opacity(0.01);
+      
+      let m = views[0]._viewMatrix;
+      let ml = controllerMatrix.left;
+      handPanel.identity().move(0,-4.5,0).move(3.35*ml.slice(12,15)[0],3.35*ml.slice(12,15)[1],3.35*ml.slice(12,15)[2]);
+      let hP = handPanel.getMatrix().slice(12,15);
+      handPanel.setMatrix([m[0],m[4],m[8],0,m[1],m[5],m[9],0,m[2],m[6],m[10],0,hP[0],hP[1],hP[2],1]).scale(.5,.5,.01);
+      if(!Condswitch && buttonState.left[1].pressed){
+         Condswitch = true;
+         Aswitch = !Aswitch;
+         if(Aswitch){
+            handPanel.opacity(.8);
+         }
+         else{
+            handPanel.opacity(.01);
+         }
+      }
+      else if(!buttonState.left[1].pressed){
+         Condswitch = false;
+      }
    });
 }
