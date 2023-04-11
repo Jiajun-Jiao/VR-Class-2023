@@ -1,10 +1,18 @@
 import * as cg from "../render/core/cg.js";
 import { g2 } from "../util/g2.js";
-import { controllerMatrix, buttonState, joyStickState } from "../render/core/controllerInput.js";
+import { buttonState } from "../render/core/controllerInput.js";
 
 export const init = async model => {
 
    model.setTable(false);
+   model.setRoom(false);
+
+   let wallHeight = 0.5;
+   let wallThickness = 0.01;
+   let showWhiteboard = true;
+   let leftButtonPrev = false;
+
+   // const floor = model.add('cube').move(0, -1, 0).scale(100, 0.01, 100)
 
    let whiteBoard = model.add('cube').texture(() => {
       g2.setColor('white');
@@ -80,14 +88,16 @@ export const init = async model => {
          if (startU === endU){
             return {
                direction: "vertical",
-               center: startV + (Math.abs(startV - endV) / 2),
+               centerX: startV + (Math.abs(startV - endV) / 2),
+               centerY: startU,
                length: Math.abs(startV - endV) / 2
             }
 
          } else {
             return {
                direction: "horizontal",
-               center: startU + (Math.abs(startU - endU) / 2),
+               centerX: startU + (Math.abs(startU - endU) / 2),
+               centerY: startV,
                length: Math.abs(startU - endU) / 2
             }
          }
@@ -98,26 +108,34 @@ export const init = async model => {
    let Aswitch = false;
    let Condswitch = false;
       
-   model.move(0,1.5,0).scale(.3).animate(() => {
-      whiteBoard.hud().move(0, -5, -5).scale(10, 6, .0001).opacity(0.01);
-      
-      let m = views[0]._viewMatrix;
-      let ml = controllerMatrix.left;
-      handPanel.identity().move(0,-4.5,0).move(3.35*ml.slice(12,15)[0],3.35*ml.slice(12,15)[1],3.35*ml.slice(12,15)[2]);
-      let hP = handPanel.getMatrix().slice(12,15);
-      handPanel.setMatrix([m[0],m[4],m[8],0,m[1],m[5],m[9],0,m[2],m[6],m[10],0,hP[0],hP[1],hP[2],1]).scale(.5,.5,.01);
-      if(!Condswitch && buttonState.left[1].pressed){
-         Condswitch = true;
-         Aswitch = !Aswitch;
-         if(Aswitch){
-            handPanel.opacity(.8);
-         }
-         else{
-            handPanel.opacity(.01);
-         }
+   model.animate(() => {
+
+      let leftButtonCurr = buttonState.left[2].pressed
+
+      if (!leftButtonCurr && leftButtonPrev) {
+         showWhiteboard = !showWhiteboard;
       }
-      else if(!buttonState.left[1].pressed){
-         Condswitch = false;
-      }
+      leftButtonPrev = leftButtonCurr
+
+      whiteBoard.hud().scale(1, 1, .0001).opacity(showWhiteboard ? 1 : 0);
+
+      const walls = whiteBoard.getWalls()
+      console.log(walls)
+
+      walls.forEach(wall => {
+         const { direction, centerX, centerY, length } = wall;
+
+         if (direction === 'horizontal') {
+            model.add('cube')
+               .move(centerX, 0.5, centerY)
+               .scale(length, wallHeight, wallThickness)
+            
+         } else if (direction === 'vertical') {
+            model.add('cube')
+               .move(centerX, 0.5, centerY)
+               .scale(wallThickness, wallHeight, length)
+         }
+      })
+
    });
 }
