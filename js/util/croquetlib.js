@@ -32,6 +32,16 @@ let drawView    = () => {
    
 }
 
+const randomInt = (min, max) => {
+   return min + Math.floor(Math.random() * (max - min));
+ }
+ 
+const randomAlertName = () => {
+   const alerts = ["combobulator", "flux capacitor", "space regulator", "sonic crewdriver"];
+   
+   return alerts[randomInt(0, alerts.length - 1)];
+ }
+
 
 export class Model extends Croquet.Model {
    init() {
@@ -52,7 +62,9 @@ export class Model extends Croquet.Model {
       this.actorIndex = 0;
       this.initScene();
    }
+
    viewJoin(viewId) {
+      
       let actorState = this.actorStates.get(viewId);
       if (! actorState) {
          actorState = this.actorIndex++;
@@ -69,10 +81,33 @@ export class Model extends Croquet.Model {
       } else if (!this.players.captain) {
          this.players.captain = viewId;
          console.log(`Added player ${viewId} as Captain.`);
+         updateView({
+            who: this.viewId,
+            eventName: "waitingForPlayer",
+            info: {
+               role:  "captain"
+            }
+         })
       } else if (!this.players.engineer) {
          this.players.engineer = viewId;
          console.log(`Added player ${viewId} as Engineer.`);
+         updateView({
+            who: this.viewId,
+            eventName: "waitingForPlayer",
+            info: {
+               role:  "engineer"
+            }
+         })
       }
+
+      if (this.players.engineer && this.players.captain){
+         updateView({
+            who: this.viewId,
+            eventName: "allPlayersJoined",
+            info: {}
+         })
+      }
+
       this.publish(this.sessionId, 'players-updated', this.players)
    }
    viewDrop(viewId) {
@@ -112,6 +147,62 @@ export class Model extends Croquet.Model {
 
    processGameEvent(event) {
       this.publish(this.sessionId, "game-event", event);
+
+      const eventType = event.eventType;
+      switch (eventType){
+         case "starting-game":
+         this.gameStarted = true;
+         
+         if (this.players.captain === this.viewId){
+            setTimeout(() => this.createNewAlert(), randomInt(5000, 30000));
+         }
+
+         updateView({
+               who: this.viewId,
+               eventName: "startingGame",
+            })
+         break
+         case "reset-game":
+         this.gameStarted = false;
+         updateView({
+               who: this.viewId,
+               eventName: "waitingForPlayer",
+               info: {
+                  role: players.engineer === this.viewId ? "engineer" : "captain"
+               }
+            })
+         case "new-alert":
+            updateView({
+               who: this.viewId,
+               eventName: "newAlert",
+               info: {
+                  severity: event.severity,
+                  name: event.alertName,
+                  resolvableBy: event.resolvedBy
+               }
+            })
+         break
+         case "resolved-alert":
+         if (this.croquetModel.players.captain === this.viewId){
+            setTimeout(() => this.createNewAlert(), randomInt(5000, 30000));
+         }
+         clearTimeout(this.failedTimeout);
+         updateView({
+               who: this.viewId,
+               eventName: "resolvedAlert",
+               info: {}
+            })
+         break
+         case "failed-alert":
+            updateView({
+               who: this.viewId,
+               eventName: "gameOver",
+               info: {}
+            })
+            break
+         default:
+         break
+      }
    }
 }
 
@@ -251,14 +342,14 @@ export class View extends Croquet.View {
    mouseUp(p)   { this.isDown = false; this.event('release', p, this.color); }
 
    createNewAlert() {
-      const expiration = this.randomInt(10000, 30000);
+      const expiration = randomInt(10000, 30000);
       this.failedTimeout = setTimeout(() => this.failAlert(), expiration);
       this.publish("input", 'game-event', {
         eventType: "new-alert",
         expiration: expiration,
-        alertName: this.randomAlertName(),
-        severity: this.randomInt(1, 5),
-        resolvedBy: [this.model.players.engineer, this.model.players.captain][this.randomInt(0, 2)]
+        alertName: randomAlertName(),
+        severity: randomInt(1, 5),
+        resolvedBy: [this.croquetModel.players.engineer, this.croquetModel.players.captain][randomInt(0, 2)]
       })
   }
   
@@ -278,15 +369,15 @@ export class View extends Croquet.View {
       case "starting-game":
         this.gameStarted = true;
         
-        if (this.model.players.captain === this.viewId){
-          setTimeout(() => this.createNewAlert(), this.randomInt(5000, 30000));
+        if (this.croquetModel.players.captain === this.viewId){
+          setTimeout(() => this.createNewAlert(), randomInt(5000, 30000));
         }
 
         updateView({
             who: this.viewId,
             eventName: "startingGame",
             info: {
-               role: players.engineer === this.viewId ? "engineer" : "captain"
+               role: this.croquetModel.players.engineer === this.viewId ? "engineer" : "captain"
             }
          })
         break
@@ -296,7 +387,7 @@ export class View extends Croquet.View {
             who: this.viewId,
             eventName: "waitingForPlayer",
             info: {
-               role: players.engineer === this.viewId ? "engineer" : "captain"
+               role: this.croquetModel.players.engineer === this.viewId ? "engineer" : "captain"
             }
          })
       case "new-alert":
@@ -311,8 +402,8 @@ export class View extends Croquet.View {
          })
         break
       case "resolved-alert":
-        if (this.model.players.captain === this.viewId){
-          setTimeout(() => this.createNewAlert(), this.randomInt(5000, 30000));
+        if (this.croquetModel.players.captain === this.viewId){
+          setTimeout(() => this.createNewAlert(), randomInt(5000, 30000));
         }
         clearTimeout(this.failedTimeout);
         updateView({

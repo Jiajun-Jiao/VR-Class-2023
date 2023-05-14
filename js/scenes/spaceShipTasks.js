@@ -42,6 +42,8 @@ export let updateView = (event) => {
         g2.fillText("Your role will be:", .5, .7, 'center');
         g2.fillText(`${event.info.role}`, .5, .6, 'center');
       });
+
+      hudMenu.hud().scale(1, 1, .0001)
       break
     case "allPlayersJoined":
       window.clay.model.remove(hudMenu);
@@ -56,14 +58,16 @@ export let updateView = (event) => {
         }
       });
 
-      g2.addWidget(hudMenu, 'button', 0.5, 0.1, 'grey', 'Start Game', () => { 
+      g2.addWidget(hudMenu, 'button', 0.5, 0.5, 'grey', 'Start Game', () => { 
         window.croquetView.startGame()
       });
+      hudMenu.hud().scale(1, 1, .0001)
+
       break
     case "startingGame":
         window.clay.model.remove(hudMenu);
 
-        target = window.clay.model.time + 5;
+        let target = window.clay.model.time + 5;
   
         hudMenu = window.clay.model.add('cube').texture(() => {
           g2.setColor('white');
@@ -73,6 +77,8 @@ export let updateView = (event) => {
           g2.fillText("Game will start in:", .5, .8, 'center');
           g2.fillText(`${target - window.clay.model.time}`, .5, .6, 'center');
         });
+        hudMenu.hud().scale(1, 1, .0001)
+
         break
   }
 }
@@ -143,9 +149,11 @@ export const init = async model => {
     if (gameCodeIndex < 4) {
       return
     }
-    model.remove(hudMenu);
     const croquetCode = gameCode.join('-');
     croquet.register(croquetCode);
+
+    model.remove(hudMenu);
+
   });
 
   g2.addWidget(hudMenu, 'button', 0.75, 0.1, 'grey', '  Clear  ', () => { 
@@ -334,14 +342,12 @@ export const init = async model => {
     .move(3, -.5, 0)
     .scale(DICE_SIZE)
 
-  // croquet.register("green-green-green-green");
 
   model.animate(() => {
     
     if (hudMenu != null){
       hudMenu.hud().scale(1, 1, .0001)
     }
-   
     /**
      * ===================
      * TASK 1 CODE
