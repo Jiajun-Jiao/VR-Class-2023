@@ -7,6 +7,7 @@ import * as croquet from "../util/croquetlib.js";
 let BALL_POS = cg.mTranslate(-.75,1.5,.5);
 let BOX_POS = cg.mTranslate(-1,1.25,.5);
 let DONUT_POS = cg.mTranslate(-.75,1.25,.5);
+
 const OBJ_SIZE = 0.06;
 const TARGET_SIZE = 0.08;
 const SIMON_BUTTON_SIZE = .7
@@ -18,6 +19,7 @@ let rightTriggerPrev = false;
 const TARGET_ID = 'ball';
 
 let hudMenu = null;
+let role = null;
 
 export let updateModel = e => {
   
@@ -31,6 +33,10 @@ export let updateView = (event) => {
     case "waitingForPlayer":
       window.clay.model.remove(hudMenu);
 
+      if (role === null){
+        role = event.info.role;
+      }
+
       hudMenu = window.clay.model.add('cube').texture(() => {
         g2.setColor('white');
         g2.fillRect(0, 0, 1, 1);
@@ -40,10 +46,10 @@ export let updateView = (event) => {
   
         g2.fillText("For this round", .5, .8, 'center');
         g2.fillText("Your role will be:", .5, .7, 'center');
-        g2.fillText(`${event.info.role}`, .5, .6, 'center');
+        g2.fillText(`${role}`, .5, .6, 'center');
       });
 
-      hudMenu.hud().scale(1, 1, .0001)
+      hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
       break
     case "allPlayersJoined":
       window.clay.model.remove(hudMenu);
@@ -52,22 +58,29 @@ export let updateView = (event) => {
         g2.setColor('white');
         g2.fillRect(0, 0, 1, 1);
         g2.setColor('black');
+
+        g2.fillText("For this round", .5, .8, 'center');
+        g2.fillText("Your role will be:", .5, .7, 'center');
+        g2.fillText(`${role}`, .5, .6, 'center');
       
         if (! g2.drawWidgets(hudMenu)) {
           return
         }
       });
 
-      g2.addWidget(hudMenu, 'button', 0.5, 0.5, 'grey', 'Start Game', () => { 
+      g2.addWidget(hudMenu, 'button', 0.5, 0.4, 'grey', 'Start Game', () => { 
         window.croquetView.startGame()
       });
-      hudMenu.hud().scale(1, 1, .0001)
-
+      hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
       break
     case "startingGame":
         window.clay.model.remove(hudMenu);
 
-        let target = window.clay.model.time + 5;
+        let target = window.clay.model.time + 30;
+
+        setTimeout(() => {
+          window.clay.model.remove(hudMenu);
+        }, target)
   
         hudMenu = window.clay.model.add('cube').texture(() => {
           g2.setColor('white');
@@ -75,10 +88,9 @@ export let updateView = (event) => {
           g2.setColor('black');
           
           g2.fillText("Game will start in:", .5, .8, 'center');
-          g2.fillText(`${target - window.clay.model.time}`, .5, .6, 'center');
+          g2.fillText(`${(target - window.clay.model.tim).toFixed(1)}`, .5, .6, 'center');
         });
-        hudMenu.hud().scale(1, 1, .0001)
-
+        hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001).color("red").opacity(Math.abs(Math.sin(window.clay.model.time)))
         break
   }
 }
@@ -126,6 +138,8 @@ export const init = async model => {
         return
     }
   });
+
+  hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
 
   let codeButtons = [['red', 'green', 'blue', 'pink'], ['cyan', 'magenta', 'yellow', 'orange']];
 
@@ -345,9 +359,9 @@ export const init = async model => {
 
   model.animate(() => {
     
-    if (hudMenu != null){
-      hudMenu.hud().scale(1, 1, .0001)
-    }
+    // if (hudMenu != null){
+    //   hudMenu.hud().scale(1, 1, .0001)
+    // }
     /**
      * ===================
      * TASK 1 CODE
