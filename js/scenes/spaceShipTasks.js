@@ -7,9 +7,11 @@ import { controllerMatrix, buttonState, joyStickState } from "../render/core/con
 import { rcb } from '../handle_scenes.js';
 import * as croquet from "../util/croquetlib.js";
 
-let BALL_POS = cg.mTranslate(-.75,1.5,.5);
+let BALL_POS = cg.mTranslate(-.75,1.25,.5);
 let BOX_POS = cg.mTranslate(-1,1.25,.5);
-let DONUT_POS = cg.mTranslate(-.75,1.25,.5);
+let DONUT_POS = cg.mTranslate(-1.5,1.25,.5);
+let TUBEX_POS = cg.mTranslate(-1.25,1.25,.5);
+let TUBEY_POS = cg.mTranslate(-.5,1.25,.5);
 
 const OBJ_SIZE = 0.06;
 const TARGET_SIZE = 0.08;
@@ -257,11 +259,15 @@ export const init = async model => {
   let ball = model.add('sphere')
   let box = model.add('cube')
   let donut = model.add('donut')
+  let tubeX = model.add('tubeX')
+  let tubeY = model.add('tubeY')
   ball = initObject(ball, 'ball', BALL_POS)
   box = initObject(box, 'box', BOX_POS)
   donut = initObject(donut, 'donut', DONUT_POS)
+  tubeX = initObject(tubeX, 'tubeX', TUBEX_POS)
+  tubeY = initObject(tubeY, 'tubeY', TUBEY_POS)
 
-  const sampleTask1Objs = [ball, box, donut]
+  const sampleTask1Objs = [ball, donut, box, tubeX, tubeY]
 
   let sampleTask1 = model.add()
     .move(-.75, 1.5, 0.5)
@@ -287,6 +293,39 @@ export const init = async model => {
       q[1] >= -1 & q[1] <= 1 &&
       q[2] >= -1 & q[2] <= 1 ;
   }
+
+  let colorChangeIndex = 0;
+  const colorChanges = [
+    [1, 0, 1], // purple
+    [1, 1, 0], // yellow
+    [0, 0, 1], // blue
+    [0, 1, 0], // green
+    [1, 0, 0], // red
+  ];
+  
+  const colorChangeFunc = () => {
+    if (colorChangeIndex > 0) {
+      sampleTask1Objs[(colorChangeIndex - 1) % 5].color(1, 1, 1);
+    }
+  
+    sampleTask1Objs[colorChangeIndex % 5].color(...colorChanges[colorChangeIndex % 5]);
+  
+    if (colorChangeIndex % 5 === 4) {
+      setTimeout(() => {
+        sampleTask1Objs[4].color(1, 1, 1);
+      }, 1000); 
+    }
+  
+    colorChangeIndex++;
+  
+    if (colorChangeIndex % 5 === 0) {
+      setTimeout(colorChangeFunc, 10000); 
+    } else {
+      setTimeout(colorChangeFunc, 1000); 
+    }
+  };
+  colorChangeFunc();
+  
 
   /**
    * ===================
