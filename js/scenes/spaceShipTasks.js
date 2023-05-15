@@ -284,6 +284,8 @@ export const init = async model => {
     .move(0, 1.5, 0.5)
     .scale(TARGET_SIZE)
 
+  sampleTask2.isComplete = false;
+
   sampleTask2.add('cube')
   .texture(() => {
     g2.setColor('black');
@@ -343,47 +345,12 @@ export const init = async model => {
     simonButtonPurple
   ];
 
+  const sampleTask2Output = sampleTask2.add('donut')
+    .move(0, -1.75, 0)
+    .color(1, 1, 0)
+
   const targetSequence = ['purple', 'yellow', 'blue', 'green', 'red']
   let predictionSequence = []
-
-  /**
-   * ===================
-   * TASK 3 CODE
-   * ===================
-   */
-  let sampleTask3 = model.add()
-    .move(1, 1.5, 0.5)
-    .scale(TARGET_SIZE)
-
-  sampleTask3.add('cube')
-  .texture(() => {
-    g2.setColor('black');
-    g2.textHeight(.1);
-    g2.fillText('Quantum Thrust\nSequencer', .5, .9, 'center');
-  })
-  .move(0, 0.25, 0)
-  .scale(1.5, 1.5, 0.001)
-
-  const dice1 = sampleTask3.add('cube')
-    .move(-3, -.5, 0)
-    .scale(DICE_SIZE)
-
-  g2.addWidget(dice1, 'slider', .375, .068, '#80ffff', 'color', value => dice1.color = value);
-
-
-  const dice2 = sampleTask3.add('cube')
-    .move(-1.5, -.5, 0)
-    .scale(DICE_SIZE)
-  const dice3 = sampleTask3.add('cube')
-    .move(0, -.5, 0)
-    .scale(DICE_SIZE)
-  const dice4 = sampleTask3.add('cube')
-    .move(1.5, -.5, 0)
-    .scale(DICE_SIZE)
-  const dice5 = sampleTask3.add('cube')
-    .move(3, -.5, 0)
-    .scale(DICE_SIZE)
-
 
   model.animate(() => {
     
@@ -428,6 +395,13 @@ export const init = async model => {
     let rightTrigger = buttonState.right[0].pressed
 
     sampleTask2Buttons.forEach((button, i) => {
+
+      // remove buttons if task is complete
+      if (sampleTask2.isComplete) {
+        sampleTask2.remove(button)
+        return;
+      }
+
       button.identity()
         .move(...button.pos)
         .scale(SIMON_BUTTON_SIZE, SIMON_BUTTON_SIZE, 0.1)
@@ -453,6 +427,11 @@ export const init = async model => {
 
         if (hitButton.id === expectedColor) {
           predictionSequence.push(hitButton.id)
+
+          // If puzzle is solved, set isComplete to true
+          if (predictionSequence.length === targetSequence.length) {
+            sampleTask2.isComplete = true;
+          }
         } else {
           predictionSequence = []
         }
@@ -468,11 +447,17 @@ export const init = async model => {
       }
     })
 
-    /**
-     * ===================
-     * TASK 3 CODE
-     * ===================
-     */
+    // Render solution to Task 1 if Task 2 is complete
+    if (sampleTask2.isComplete) {
+      sampleTask2Output.identity()
+        .move(0, -1.75, 0)
+        .turnY(model.time * 0.8)
+        .opacity(1)
+    } else {
+      sampleTask2Output.identity()
+        .scale(0)
+        .opacity(0)
+    }
 
   });
 }
