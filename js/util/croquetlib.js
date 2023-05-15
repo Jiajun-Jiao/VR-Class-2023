@@ -337,9 +337,9 @@ export class View extends Croquet.View {
       for (const key of Object.keys(window.avatars)){
          if (first){
             first = false;
-            window.avatars[window.playerid].headset.matrix = captainMat
+            window.avatars[key].headset.matrix = captainMat
          } else {
-            window.avatars[window.playerid].headset.matrix = engineerMat
+            window.avatars[key].headset.matrix = engineerMat
          }
          
       }
