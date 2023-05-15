@@ -20,22 +20,29 @@ const TARGET_ID = 'ball';
 
 let hudMenu = null;
 let role = null;
+let viewId = null;
+let alert = null;
 
 export let updateModel = e => {
   
 }
 
 export let updateView = (event) => {
+
   console.log(event)
-  console.log(window)
-
   switch (event.eventName) {
-    case "waitingForPlayer":
-      window.clay.model.remove(hudMenu);
-
-      if (role === null){
-        role = event.info.role;
+    case "joinedGame":
+      if (viewId !== null){
+        return
       }
+      viewId = event.info.viewId
+      role = event.info.role
+
+      console.log(viewId, role, "model");
+
+    case "waitingForPlayer":
+      console.log(viewId, role, "model");
+      window.clay.model.remove(hudMenu);
 
       hudMenu = window.clay.model.add('cube').texture(() => {
         g2.setColor('white');
@@ -44,9 +51,12 @@ export let updateView = (event) => {
   
         g2.textHeight(0.1)
   
-        g2.fillText("For this round", .5, .8, 'center');
-        g2.fillText("Your role will be:", .5, .7, 'center');
-        g2.fillText(`${role}`, .5, .6, 'center');
+        g2.fillText("Waiting for", .5, .8, 'center');
+        g2.fillText("Other players...", .5, .7, 'center');
+        g2.fillText("Game will", .5, .6, 'center');
+        g2.fillText("Begin soon...", .5, .5, 'center');
+        // g2.fillText("Your role will be:", .5, .7, 'center');
+        // g2.fillText(`${role}`, .5, .6, 'center');
       });
 
       hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
@@ -59,9 +69,8 @@ export let updateView = (event) => {
         g2.fillRect(0, 0, 1, 1);
         g2.setColor('black');
 
-        g2.fillText("For this round", .5, .8, 'center');
-        g2.fillText("Your role will be:", .5, .7, 'center');
-        g2.fillText(`${role}`, .5, .6, 'center');
+        g2.fillText("All players ", .5, .8, 'center');
+        g2.fillText("Have joined", .5, .6, 'center');
       
         if (! g2.drawWidgets(hudMenu)) {
           return
@@ -92,6 +101,26 @@ export let updateView = (event) => {
         });
         hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001).color("red").opacity(Math.abs(Math.sin(window.clay.model.time)))
         break
+    case "resolvedAlert":
+      alert = null;
+      break;
+    case "newAlert":
+      if (alert !== null){
+        return
+      }
+      alert = event.info;
+      console.log(alert)
+
+      hudMenu = window.clay.model.add('cube').texture(() => {
+        g2.setColor([1, 0.38, 0.27, 0.15 + (Math.sin(window.clay.model.time)  * 0.25)]);
+        g2.fillRect(0, 0, 1, 1);
+        g2.setColor('black');
+        g2.fillText('New Alert!!!', .5, .5, 'center');
+      })
+
+      hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
+
+      break;
   }
 }
 
@@ -174,7 +203,6 @@ export const init = async model => {
     gameCode = [null, null, null, null];
     gameCodeIndex = 0;
   });
-
 
   /**
    * ===================
@@ -359,8 +387,14 @@ export const init = async model => {
 
   model.animate(() => {
     
-    // if (hudMenu != null){
-    //   hudMenu.hud().scale(1, 1, .0001)
+    if (hudMenu != null){
+      // hudMenu.hud().scale(1, 1, .0001)
+    }
+
+    // if (alert !== null) {
+    //   hudAlert.hud().scale(1, 1, .0001).color("red").opacity();
+    // } else {
+    //   hudAlert.identity().scale(0.0000001, 0.00000001, .0001).opacity(0.1);
     // }
     /**
      * ===================

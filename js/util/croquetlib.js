@@ -32,11 +32,11 @@ let drawView    = () => {
    
 }
 
-const randomInt = (min, max) => {
+export const randomInt = (min, max) => {
    return min + Math.floor(Math.random() * (max - min));
  }
  
-const randomAlertName = () => {
+export const randomAlertName = () => {
    const alerts = ["combobulator", "flux capacitor", "space regulator", "sonic crewdriver"];
    
    return alerts[randomInt(0, alerts.length - 1)];
@@ -63,17 +63,13 @@ export class Model extends Croquet.Model {
       this.initScene();
    }
 
-   viewJoin(viewId) {
-      
-      let actorState = this.actorStates.get(viewId);
+   viewJoin(viewId) {let actorState = this.actorStates.get(viewId);
       if (! actorState) {
          actorState = this.actorIndex++;
          this.actorStates.set(viewId, actorState);
       }
-      const actor = Actor.create(viewId);
-      actor.state = actorState;
-      this.actors.set(viewId, actor);
-      this.publish("actor", "join", actor);
+
+      let role = null;
 
       if (this.players.captain && this.players.engineer) {
          console.log(`All roles taken. Cannot add ${viewId}.`)
@@ -81,23 +77,21 @@ export class Model extends Croquet.Model {
       } else if (!this.players.captain) {
          this.players.captain = viewId;
          console.log(`Added player ${viewId} as Captain.`);
+         role = "captain";
          updateView({
             who: this.viewId,
             eventName: "waitingForPlayer",
-            info: {
-               role:  "captain"
-            }
-         })
+            info: {}
+         });
       } else if (!this.players.engineer) {
          this.players.engineer = viewId;
          console.log(`Added player ${viewId} as Engineer.`);
+         role = "engineer";
          updateView({
             who: this.viewId,
             eventName: "waitingForPlayer",
-            info: {
-               role:  "engineer"
-            }
-         })
+            info: {}
+         });
       }
 
       if (this.players.engineer && this.players.captain){
@@ -108,12 +102,16 @@ export class Model extends Croquet.Model {
          })
       }
 
+      const actor = Actor.create({viewId, role});
+      actor.state = actorState;
+      this.actors.set(viewId, actor);
+      this.publish("actor", "join", actor);
       this.publish(this.sessionId, 'players-updated', this.players)
    }
    viewDrop(viewId) {
       const actor = this.actors.get(viewId);
       this.actors.delete(viewId);
-      actor.destroy();
+      actor?.destroy()
       this.publish("actor", "exit", actor);
 
       if (this.players.captain === viewId) {
@@ -150,19 +148,14 @@ export class Model extends Croquet.Model {
 
       const eventType = event.eventType;
       switch (eventType){
-         case "starting-game":
+      case "starting-game":
          this.gameStarted = true;
-         
-         if (this.players.captain === this.viewId){
-            setTimeout(() => this.createNewAlert(), randomInt(5000, 30000));
-         }
-
          updateView({
-               who: this.viewId,
-               eventName: "startingGame",
-            })
+            who: this.viewId,
+            eventName: "startingGame",
+         })
          break
-         case "reset-game":
+      case "reset-game":
          this.gameStarted = false;
          updateView({
                who: this.viewId,
@@ -171,7 +164,7 @@ export class Model extends Croquet.Model {
                   role: players.engineer === this.viewId ? "engineer" : "captain"
                }
             })
-         case "new-alert":
+      case "new-alert":
             updateView({
                who: this.viewId,
                eventName: "newAlert",
@@ -182,10 +175,10 @@ export class Model extends Croquet.Model {
                }
             })
          break
-         case "resolved-alert":
-         if (this.croquetModel.players.captain === this.viewId){
-            setTimeout(() => this.createNewAlert(), randomInt(5000, 30000));
-         }
+      case "resolved-alert":
+         // if (this.croquetModel.players.captain === this.viewId){
+         //    setTimeout(() => this.createNewAlert(), randomInt(5000, 30000));
+         // }
          clearTimeout(this.failedTimeout);
          updateView({
                who: this.viewId,
@@ -193,7 +186,7 @@ export class Model extends Croquet.Model {
                info: {}
             })
          break
-         case "failed-alert":
+      case "failed-alert":
             updateView({
                who: this.viewId,
                eventName: "gameOver",
@@ -207,7 +200,8 @@ export class Model extends Croquet.Model {
 }
 
 export class Actor extends Croquet.Model {
-   init(viewId) {
+   init({viewId, role}) {
+      this.role = role;
       this.viewId = viewId;
       this.mousePos = { x: 0, y: 0 };
       this.avatarPos = {
@@ -219,11 +213,13 @@ export class Actor extends Croquet.Model {
       }
       this.future(500).tick();
       this.subscribe(viewId, "updatePos", this.updatePos);
+
+      console.log(viewId, role, "actor")
    }
    updatePos(avatarPos) {
-    //   this.mousePos = mousePos;
     this.avatarPos = avatarPos;
    }
+
    tick() {
       this.publish(this.id, "moved", this.now());
       this.future(500).tick();
@@ -242,15 +238,10 @@ export class View extends Croquet.View {
       croquetModel.actors.forEach(actor => this.addPawn(actor));
 
       window.croquetView = this;
-      this.role = "Captain";
-      this.failedTimeout = null;
-      this.playersUpdated(croquetModel.players)
-
-      this.subscribe(this.sessionId, 'players-updated', this.playersUpdated);
-      this.subscribe(this.sessionId, 'game-event', this.processGameEvent);
 
       this.subscribe("actor", "join", this.addPawn);
       this.subscribe("actor", "exit", this.removePawn);
+      this.subscribe(this.sessionId, 'game-event', this.processGameEvent);
       this.future(50).tick();
 
       let eToXY = e => {
@@ -341,6 +332,10 @@ export class View extends Croquet.View {
    mouseMove(p) { this.event(this.isDown ? 'drag' : 'move', p); }
    mouseUp(p)   { this.isDown = false; this.event('release', p, this.color); }
 
+   startGame() {
+      this.publish("input", 'game-event', { eventType: "starting-game" });
+   }
+
    createNewAlert() {
       const expiration = randomInt(10000, 30000);
       this.failedTimeout = setTimeout(() => this.failAlert(), expiration);
@@ -357,92 +352,13 @@ export class View extends Croquet.View {
     this.publish("input", 'game-event', { eventType: "failed-alert" });
   }
 
-  startGame() {
-    this.publish("input", 'game-event', { eventType: "starting-game" });
-  }
-  
-  processGameEvent(event) {
-    console.log("new event", event)
-                
-    const eventType = event.eventType;
-    switch (eventType){
-      case "starting-game":
-        this.gameStarted = true;
-        
-        if (this.croquetModel.players.captain === this.viewId){
-          setTimeout(() => this.createNewAlert(), randomInt(5000, 30000));
-        }
+  processGameEvent(event){
 
-        updateView({
-            who: this.viewId,
-            eventName: "startingGame",
-            info: {
-               role: this.croquetModel.players.engineer === this.viewId ? "engineer" : "captain"
-            }
-         })
-        break
-      case "reset-game":
-        this.gameStarted = false;
-        updateView({
-            who: this.viewId,
-            eventName: "waitingForPlayer",
-            info: {
-               role: this.croquetModel.players.engineer === this.viewId ? "engineer" : "captain"
-            }
-         })
-      case "new-alert":
-         updateView({
-            who: this.viewId,
-            eventName: "newAlert",
-            info: {
-               severity: event.severity,
-               name: event.alertName,
-               resolvableBy: event.resolvedBy
-            }
-         })
-        break
-      case "resolved-alert":
-        if (this.croquetModel.players.captain === this.viewId){
-          setTimeout(() => this.createNewAlert(), randomInt(5000, 30000));
-        }
-        clearTimeout(this.failedTimeout);
-        updateView({
-            who: this.viewId,
-            eventName: "resolvedAlert",
-            info: {}
-         })
-        break
-      case "failed-alert":
-         updateView({
-            who: this.viewId,
-            eventName: "gameOver",
-            info: {}
-         })
-         break
-      default:
-        break
-    }
-  }
-
-  playersUpdated(players) {
-   if (players.engineer && players.captain){
-      updateView({
-         who: this.viewId,
-         eventName: "allPlayersJoined",
-         info: {
-            role: players.engineer === this.viewId ? "engineer" : "captain"
-         }
-      })
-   } else {
-      updateView({
-         who: this.viewId,
-         eventName: "waitingForPlayer",
-         info: {
-            role: players.engineer === this.viewId ? "engineer" : "captain"
-         }
-      })
+   if (event.eventType === "starting-game"){
+      setTimeout(() => this.createNewAlert(), randomInt(15000, 20000));
    }
- }
+
+  }
 }
 
 export class Pawn extends Croquet.View {
