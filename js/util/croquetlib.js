@@ -332,7 +332,18 @@ export class View extends Croquet.View {
    mouseMove(p) { this.event(this.isDown ? 'drag' : 'move', p); }
    mouseUp(p)   { this.isDown = false; this.event('release', p, this.color); }
 
-   startGame() {
+   startGame(captainMat, engineerMat) {
+      let first = true;
+      for (const key of Object.keys(window.avatars)){
+         if (first){
+            first = false;
+            window.avatars[window.playerid].headset.matrix = captainMat
+         } else {
+            window.avatars[window.playerid].headset.matrix = engineerMat
+         }
+         
+      }
+     
       this.publish("input", 'game-event', { eventType: "starting-game" });
    }
 

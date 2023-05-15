@@ -83,7 +83,9 @@ export let updateView = (event) => {
       });
 
       g2.addWidget(hudMenu, 'button', 0.5, 0.4, 'grey', 'Start Game', () => { 
-        window.croquetView.startGame()
+        const captainMat = cg.mTranslate(-3, 0, 0.5);
+        const engineerMat = cg.mTranslate(3, 0, 0.5);
+        window.croquetView.startGame(captainMat, engineerMat);
       });
       hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
       break
