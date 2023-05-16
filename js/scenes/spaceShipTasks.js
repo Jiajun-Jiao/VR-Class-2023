@@ -7,11 +7,11 @@ import { controllerMatrix, buttonState, joyStickState } from "../render/core/con
 import { rcb } from '../handle_scenes.js';
 import * as croquet from "../util/croquetlib.js";
 
-let BALL_POS = cg.mTranslate(-.75,1.25,.5);
-let BOX_POS = cg.mTranslate(-1,1.25,.5);
-let DONUT_POS = cg.mTranslate(-1.5,1.25,.5);
-let TUBEX_POS = cg.mTranslate(-1.25,1.25,.5);
-let TUBEY_POS = cg.mTranslate(-.5,1.25,.5);
+let BALL_POS = cg.mTranslate(0,1.25,2);
+let BOX_POS = cg.mTranslate(-.25,1.25,2);
+let DONUT_POS = cg.mTranslate(-.75,1.25,2);
+let TUBEX_POS = cg.mTranslate(-.5,1.25,2);
+let TUBEY_POS = cg.mTranslate(0.25,1.25,2);
 
 const OBJ_SIZE = 0.06;
 const TARGET_SIZE = 0.08;
@@ -21,7 +21,7 @@ const DICE_SIZE = .5
 let leftTriggerPrev = false;
 let rightTriggerPrev = false;
 
-const TARGET_ID = 'ball';
+const TARGET_ID = 'donut';
 
 let hudMenu = null;
 let role = null;
@@ -113,9 +113,7 @@ export let updateView = (event) => {
         });
         hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001).color("red").opacity(Math.abs(Math.sin(window.clay.model.time)))
         break
-    case "resolvedAlert":
-      alert = null;
-      break;
+
     case "newAlert":
       if (alert !== null){
         return
@@ -278,7 +276,8 @@ export const init = async model => {
   const sampleTask1Objs = [ball, donut, box, tubeX, tubeY]
 
   let sampleTask1 = model.add()
-    .move(-.75, 1.5, 0.5)
+    .move(-.25, 1.5, 2)
+    .turnY(Math.PI)
     .scale(TARGET_SIZE)
 
   sampleTask1.add('cube')
@@ -468,22 +467,40 @@ export const init = async model => {
      */
     const targetPos = targetBox.getGlobalMatrix().slice(12,15);
     const mlPos = controllerMatrix.left.slice(12,15);
-
+    
     sampleTask1Objs.forEach(obj => {
       obj.handleMove(mlPos)
       obj.setMatrix(obj.pos).scale(OBJ_SIZE)
-
+    
       if (obj.id === TARGET_ID) {
         const objToTargetDistance = cg.distance(obj.pos.slice(12,15), targetPos)
         const isObjInTarget = Math.abs(objToTargetDistance) < TARGET_SIZE;
-
+    
         if (isObjInTarget) {
           targetBox.color(0, 1, 0)
+    
+          if (alert !== null) {
+            window.clay.model.remove(hudMenu);
+            alert = null;
+          }
+    
+          alert = "ResolvedAlert"; 
+          console.log(alert)
+    
+          hudMenu = window.clay.model.add('cube').texture(() => {
+            g2.setColor([0, 1, 0, (1 + Math.sin(1.5 * window.clay.model.time)) / 2]);
+            g2.fillRect(0, 0, 1, 1);
+            g2.setColor('black');
+            g2.fillText('Spaceship is stable!', .5, .5, 'center');
+          })
+          hudMenu.move(0, 1.25, 3).scale(1, 1, .0001).turnY(Math.PI)
+    
         } else {
           targetBox.color(1, 1, 1)
         }
       }
     })
+    
 
     /**
      * ===================
