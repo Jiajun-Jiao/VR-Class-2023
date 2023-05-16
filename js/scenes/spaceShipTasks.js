@@ -28,6 +28,10 @@ let role = null;
 let viewId = null;
 let alert = null;
 
+let alarm = new Audio('../../media/sound/alarm.mp3');
+let bgAudio = new Audio('../../media/sound/futuristic.mp3')
+let success = new Audio('../../media/sound/missionSuccess.mp3');
+
 export let updateModel = e => {
   
 }
@@ -84,6 +88,7 @@ export let updateView = (event) => {
       g2.addWidget(hudMenu, 'button', 0.5, 0.2, 'grey', 'Start Game', () => { 
         const captainMat = cg.mTranslate(-3, 0, 0.5);
         const engineerMat = cg.mTranslate(3, 0, 0.5);
+        bgAudio.play();
         window.croquetView.startGame(captainMat, engineerMat);
       });
       hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
