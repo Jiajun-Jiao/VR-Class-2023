@@ -335,13 +335,14 @@ export class View extends Croquet.View {
    startGame(captainMat, engineerMat) {
       let first = true;
       for (const key of Object.keys(window.avatars)){
-         if (first){
+         if (key === 0){
+            continue
+         } else if (first){
             first = false;
             window.avatars[key].headset.matrix = captainMat
          } else {
             window.avatars[key].headset.matrix = engineerMat
-         }
-         
+         }         
       }
      
       this.publish("input", 'game-event', { eventType: "starting-game" });

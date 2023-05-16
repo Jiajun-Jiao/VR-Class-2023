@@ -33,20 +33,21 @@ export let updateModel = e => {
 }
 
 export let updateView = (event) => {
-
+  console.log(window.avatars, "avatars")
+  console.log(window)
   console.log(event)
+  viewId = window?.croquetView?.viewId;
+
+  if (window.croquetModel.players.captain === viewId){
+    window.role = "Captain";
+  } else {
+    window.role = "Engineer";
+  }
+
   switch (event.eventName) {
     case "joinedGame":
-      if (viewId !== null){
-        return
-      }
-      viewId = event.info.viewId
-      role = event.info.role
-
-      console.log(viewId, role, "model");
-
+      break
     case "waitingForPlayer":
-      console.log(viewId, role, "model");
       window.clay.model.remove(hudMenu);
 
       hudMenu = window.clay.model.add('cube').texture(() => {
@@ -56,12 +57,8 @@ export let updateView = (event) => {
   
         g2.textHeight(0.1)
   
-        g2.fillText("Waiting for", .5, .8, 'center');
-        g2.fillText("Other players...", .5, .7, 'center');
-        g2.fillText("Game will", .5, .6, 'center');
-        g2.fillText("Begin soon...", .5, .5, 'center');
-        // g2.fillText("Your role will be:", .5, .7, 'center');
-        // g2.fillText(`${role}`, .5, .6, 'center');
+        g2.fillText("Waiting for", .5, .6, 'center');
+        g2.fillText("Other players...", .5, .5, 'center');
       });
 
       hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
@@ -75,14 +72,16 @@ export let updateView = (event) => {
         g2.setColor('black');
 
         g2.fillText("All players ", .5, .8, 'center');
-        g2.fillText("Have joined", .5, .6, 'center');
+        g2.fillText("Have joined", .5, .7, 'center');
+        g2.fillText("Your role will be:", .5, .6, 'center');
+        g2.fillText(`${window.role}`, .5, .5, 'center');
       
         if (! g2.drawWidgets(hudMenu)) {
           return
         }
       });
 
-      g2.addWidget(hudMenu, 'button', 0.5, 0.4, 'grey', 'Start Game', () => { 
+      g2.addWidget(hudMenu, 'button', 0.5, 0.2, 'grey', 'Start Game', () => { 
         const captainMat = cg.mTranslate(-3, 0, 0.5);
         const engineerMat = cg.mTranslate(3, 0, 0.5);
         window.croquetView.startGame(captainMat, engineerMat);
@@ -90,6 +89,12 @@ export let updateView = (event) => {
       hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
       break
     case "startingGame":
+        console.log(role)
+        if (window.role === "Captain"){
+          window.player_position = [-3, -1, 8];
+        } else if (window.role === "Engineer") {
+          window.player_position = [-0.7, -1, -7.5];
+        }
         window.clay.model.remove(hudMenu);
 
         let target = window.clay.model.time + 30;
@@ -133,6 +138,7 @@ export let updateView = (event) => {
 
 
 export const init = async model => {
+  window.player_position = [0,-1,0]
   model.setTable(false);
   model.setRoom(false);
   model.setTable(false);
@@ -406,7 +412,19 @@ export const init = async model => {
   const targetSequence = ['purple', 'yellow', 'blue', 'green', 'red']
   let predictionSequence = []
 
+
+  // const debugHud = model.add('cube').texture(() => {
+  //   g2.setColor('white');
+  //   g2.fillRect(0, 0, 1, 1);
+  //   g2.setColor('black');
+  //   g2.fillText(`Role: ${window.role}`, .5, .9, 'center');
+  //   g2.fillText(`Pos:`, .5, .7, 'center');
+  //   g2.fillText(`${window.player_position.map(p => p.toFixed(2))}`, .5, .6, 'center');
+  
+  // });
+
   model.animate(() => {
+    // debugHud.hud().scale(1, 1, .0001);
     
     let lx = moveSpeed*joyStickState.left.x;
       let ly = moveSpeed*joyStickState.left.y;
@@ -423,34 +441,26 @@ export const init = async model => {
       }
       
       if(Math.abs(Rx) < .3){
-         gltf1.translation[2] -= ly;
-         gltf1.translation[0] -= lx;
+         window.player_position[2] -= ly;
+         window.player_position[0] -= lx;
       }
       else if(Math.abs(Rx) > .9){
-         gltf1.translation[2] += ly;
-         gltf1.translation[0] += lx;
+        window.player_position[2] += ly;
+        window.player_position[0] += lx;
       }
       else if(Rx*Ry <0){//left
-         gltf1.translation[0] -= ly;
-         gltf1.translation[2] += lx;
+        window.player_position[0] -= ly;
+        window.player_position[2] += lx;
       }
       else{//right
-         gltf1.translation[0] += ly;
-         gltf1.translation[2] -= lx;
+        window.player_position[0] += ly;
+        window.player_position[2] -= lx;
       }
  
       global.gltfRoot.rotation = sceneRotation; // Apply the scene rotation to the root node
       gltf1.rotation = rotation1;
-
-    if (hudMenu != null){
-      // hudMenu.hud().scale(1, 1, .0001)
-    }
-
-    // if (alert !== null) {
-    //   hudAlert.hud().scale(1, 1, .0001).color("red").opacity();
-    // } else {
-    //   hudAlert.identity().scale(0.0000001, 0.00000001, .0001).opacity(0.1);
-    // }
+    
+      gltf1.translation = window.player_position;
     /**
      * ===================
      * TASK 1 CODE
