@@ -1,11 +1,18 @@
+import * as global from "../global.js";
+import { quat } from "../render/math/gl-matrix.js";
+import { Gltf2Node } from "../render/nodes/gltf2.js";
 import { g2 } from "../util/g2.js";
 import * as cg from "../render/core/cg.js";
 import { controllerMatrix, buttonState, joyStickState } from "../render/core/controllerInput.js";
 import { rcb } from '../handle_scenes.js';
+import * as croquet from "../util/croquetlib.js";
 
-let BALL_POS = cg.mTranslate(-.75,1.5,.5);
-let BOX_POS = cg.mTranslate(-1,1.25,.5);
-let DONUT_POS = cg.mTranslate(-.75,1.25,.5);
+let BALL_POS = cg.mTranslate(0,1.25,2);
+let BOX_POS = cg.mTranslate(-.25,1.25,2);
+let DONUT_POS = cg.mTranslate(-.75,1.25,2);
+let TUBEX_POS = cg.mTranslate(-.5,1.25,2);
+let TUBEY_POS = cg.mTranslate(0.25,1.25,2);
+
 const OBJ_SIZE = 0.06;
 const TARGET_SIZE = 0.08;
 const SIMON_BUTTON_SIZE = .7
@@ -14,11 +21,214 @@ const DICE_SIZE = .5
 let leftTriggerPrev = false;
 let rightTriggerPrev = false;
 
-const TARGET_ID = 'ball';
+const TARGET_ID = 'donut';
+
+let hudMenu = null;
+let role = null;
+let viewId = null;
+let alert = null;
+
+let alarm = new Audio('../../media/sound/alarm.mp3');
+let bgAudio = new Audio('../../media/sound/futuristic.mp3')
+let success = new Audio('../../media/sound/missionSuccess.mp3');
+
+export let updateModel = e => {
+  
+}
+
+export let updateView = (event) => {
+  console.log(window.avatars, "avatars")
+  console.log(window)
+  console.log(event)
+  viewId = window?.croquetView?.viewId;
+
+  if (window.croquetModel.players.captain === viewId){
+    window.role = "Captain";
+  } else {
+    window.role = "Engineer";
+  }
+
+  switch (event.eventName) {
+    case "joinedGame":
+      break
+    case "waitingForPlayer":
+      window.clay.model.remove(hudMenu);
+
+      hudMenu = window.clay.model.add('cube').texture(() => {
+        g2.setColor('white');
+        g2.fillRect(0, 0, 1, 1);
+        g2.setColor('black');
+  
+        g2.textHeight(0.1)
+  
+        g2.fillText("Waiting for", .5, .6, 'center');
+        g2.fillText("Other players...", .5, .5, 'center');
+      });
+
+      hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
+      break
+    case "allPlayersJoined":
+      window.clay.model.remove(hudMenu);
+
+      hudMenu = window.clay.model.add('cube').texture(() => {
+        g2.setColor('white');
+        g2.fillRect(0, 0, 1, 1);
+        g2.setColor('black');
+
+        g2.fillText("All players ", .5, .8, 'center');
+        g2.fillText("Have joined", .5, .7, 'center');
+        g2.fillText("Your role will be:", .5, .6, 'center');
+        g2.fillText(`${window.role}`, .5, .5, 'center');
+      
+        if (! g2.drawWidgets(hudMenu)) {
+          return
+        }
+      });
+
+      g2.addWidget(hudMenu, 'button', 0.5, 0.2, 'grey', 'Start Game', () => { 
+        const captainMat = cg.mTranslate(-3, 0, 0.5);
+        const engineerMat = cg.mTranslate(3, 0, 0.5);
+        bgAudio.play();
+        window.croquetView.startGame(captainMat, engineerMat);
+      });
+      hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
+      break
+    case "startingGame":
+        console.log(role)
+        if (window.role === "Captain"){
+          window.player_position = [-3, -1, 8];
+        } else if (window.role === "Engineer") {
+          window.player_position = [-0.7, -1, -7.5];
+        }
+        window.clay.model.remove(hudMenu);
+
+        let target = window.clay.model.time + 30;
+
+        setTimeout(() => {
+          window.clay.model.remove(hudMenu);
+        }, target)
+  
+        hudMenu = window.clay.model.add('cube').texture(() => {
+          g2.setColor('white');
+          g2.fillRect(0, 0, 1, 1);
+          g2.setColor('black');
+          
+          g2.fillText("Game will start in:", .5, .8, 'center');
+          g2.fillText(`${(target - window.clay.model.tim).toFixed(1)}`, .5, .6, 'center');
+        });
+        hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001).color("red").opacity(Math.abs(Math.sin(window.clay.model.time)))
+        break
+
+    case "newAlert":
+      if (alert !== null){
+        return
+      }
+      alert = event.info;
+      console.log(alert)
+
+      hudMenu = window.clay.model.add('cube').texture(() => {
+        g2.setColor([1, 0.38, 0.27, 0.15 + (Math.sin(window.clay.model.time)  * 0.25)]);
+        g2.fillRect(0, 0, 1, 1);
+        g2.setColor('black');
+        g2.fillText('New Alert!!!', .5, .5, 'center');
+      })
+
+      hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
+
+      break;
+  }
+}
+
 
 export const init = async model => {
-
+  window.player_position = [0,-1,0]
   model.setTable(false);
+  model.setRoom(false);
+  model.setTable(false);
+  let moveSpeed = .05;
+  let rotateSpeed = 1;
+  let gltf1 = new Gltf2Node({ url: './media/gltf/SpaceShip/scene.gltf' });
+  let rotation1 = quat.create();
+  let sceneRotation = quat.create();
+
+ gltf1.translation = [0, -1, 0];
+
+ global.gltfRoot.addNode(gltf1);
+  /**
+   * ===================
+   * CROQUET SETUP
+   * ===================
+   */
+  // croquet.register("red-red-red-red");
+
+  let gameCode = [null, null, null, null]
+  let gameCodeIndex = 0;
+
+  hudMenu = model.add('cube').texture(() => {
+    g2.setColor('white');
+    g2.fillRect(0, 0, 1, 1);
+    g2.setColor('black');
+    g2.fillText('Enter code', .5, .9, 'center');
+  
+
+    let indx = 1;
+    for (const code of gameCode){
+      if (code !== null){
+        g2.setColor(code);
+      } else if (indx === (gameCodeIndex + 1)) {
+          if (Math.sin(8 * model.time) < 0.5) {
+            g2.setColor('black');
+          } else {
+            g2.setColor('white');
+          }
+      } else {
+        g2.setColor('black');
+      }
+      g2.fillRect( (0.2 * (indx)) - 0.05, 0.65, 0.1, 0.1);
+
+      indx ++;
+    }
+
+    if (! g2.drawWidgets(hudMenu)) {
+        return
+    }
+  });
+
+  hudMenu.move(0, 1.25, -.25).scale(1, 1, .0001)
+
+  let codeButtons = [['red', 'green', 'blue', 'pink'], ['cyan', 'magenta', 'yellow', 'orange']];
+
+  let rowIndx = 1;
+  for (const codeButttonRow of codeButtons){
+    let columnIndx = 1;
+    for (const codeButton of codeButttonRow){
+      g2.addWidget(hudMenu, 'button', (0.2 * (columnIndx)), .25 * rowIndx, codeButton, '   ', () => { 
+        if (gameCodeIndex >= 4) {
+          return
+        }
+        gameCode[gameCodeIndex] = codeButton;
+        gameCodeIndex++;
+      });
+      columnIndx ++;
+    }
+    rowIndx ++;
+  }
+
+  g2.addWidget(hudMenu, 'button', 0.25, 0.1, 'grey', 'Join Game', () => { 
+    if (gameCodeIndex < 4) {
+      return
+    }
+    const croquetCode = gameCode.join('-');
+    croquet.register(croquetCode);
+
+    model.remove(hudMenu);
+
+  });
+
+  g2.addWidget(hudMenu, 'button', 0.75, 0.1, 'grey', '  Clear  ', () => { 
+    gameCode = [null, null, null, null];
+    gameCodeIndex = 0;
+  });
 
   /**
    * ===================
@@ -60,14 +270,19 @@ export const init = async model => {
   let ball = model.add('sphere')
   let box = model.add('cube')
   let donut = model.add('donut')
+  let tubeX = model.add('tubeX')
+  let tubeY = model.add('tubeY')
   ball = initObject(ball, 'ball', BALL_POS)
   box = initObject(box, 'box', BOX_POS)
   donut = initObject(donut, 'donut', DONUT_POS)
+  tubeX = initObject(tubeX, 'tubeX', TUBEX_POS)
+  tubeY = initObject(tubeY, 'tubeY', TUBEY_POS)
 
-  const sampleTask1Objs = [ball, box, donut]
+  const sampleTask1Objs = [ball, donut, box, tubeX, tubeY]
 
   let sampleTask1 = model.add()
-    .move(-.75, 1.5, 0.5)
+    .move(-.25, 1.5, 2)
+    .turnY(Math.PI)
     .scale(TARGET_SIZE)
 
   sampleTask1.add('cube')
@@ -91,6 +306,39 @@ export const init = async model => {
       q[2] >= -1 & q[2] <= 1 ;
   }
 
+  let colorChangeIndex = 0;
+  const colorChanges = [
+    [1, 0, 1], // purple
+    [1, 1, 0], // yellow
+    [0, 0, 1], // blue
+    [0, 1, 0], // green
+    [1, 0, 0], // red
+  ];
+  
+  const colorChangeFunc = () => {
+    if (colorChangeIndex > 0) {
+      sampleTask1Objs[(colorChangeIndex - 1) % 5].color(1, 1, 1);
+    }
+  
+    sampleTask1Objs[colorChangeIndex % 5].color(...colorChanges[colorChangeIndex % 5]);
+  
+    if (colorChangeIndex % 5 === 4) {
+      setTimeout(() => {
+        sampleTask1Objs[4].color(1, 1, 1);
+      }, 1000); 
+    }
+  
+    colorChangeIndex++;
+  
+    if (colorChangeIndex % 5 === 0) {
+      setTimeout(colorChangeFunc, 10000); 
+    } else {
+      setTimeout(colorChangeFunc, 1000); 
+    }
+  };
+  colorChangeFunc();
+  
+
   /**
    * ===================
    * TASK 2 CODE
@@ -99,6 +347,8 @@ export const init = async model => {
   let sampleTask2 = model.add()
     .move(0, 1.5, 0.5)
     .scale(TARGET_SIZE)
+
+  sampleTask2.isComplete = false;
 
   sampleTask2.add('cube')
   .texture(() => {
@@ -159,49 +409,62 @@ export const init = async model => {
     simonButtonPurple
   ];
 
+  const sampleTask2Output = sampleTask2.add('donut')
+    .move(0, -1.75, 0)
+    .color(1, 1, 0)
+
   const targetSequence = ['purple', 'yellow', 'blue', 'green', 'red']
   let predictionSequence = []
 
-  /**
-   * ===================
-   * TASK 3 CODE
-   * ===================
-   */
-  let sampleTask3 = model.add()
-    .move(1, 1.5, 0.5)
-    .scale(TARGET_SIZE)
 
-  sampleTask3.add('cube')
-  .texture(() => {
-    g2.setColor('black');
-    g2.textHeight(.1);
-    g2.fillText('Quantum Thrust\nSequencer', .5, .9, 'center');
-  })
-  .move(0, 0.25, 0)
-  .scale(1.5, 1.5, 0.001)
-
-  const dice1 = sampleTask3.add('cube')
-    .move(-3, -.5, 0)
-    .scale(DICE_SIZE)
-
-  g2.addWidget(dice1, 'slider', .375, .068, '#80ffff', 'color', value => dice1.color = value);
-
-
-  const dice2 = sampleTask3.add('cube')
-    .move(-1.5, -.5, 0)
-    .scale(DICE_SIZE)
-  const dice3 = sampleTask3.add('cube')
-    .move(0, -.5, 0)
-    .scale(DICE_SIZE)
-  const dice4 = sampleTask3.add('cube')
-    .move(1.5, -.5, 0)
-    .scale(DICE_SIZE)
-  const dice5 = sampleTask3.add('cube')
-    .move(3, -.5, 0)
-    .scale(DICE_SIZE)
+  // const debugHud = model.add('cube').texture(() => {
+  //   g2.setColor('white');
+  //   g2.fillRect(0, 0, 1, 1);
+  //   g2.setColor('black');
+  //   g2.fillText(`Role: ${window.role}`, .5, .9, 'center');
+  //   g2.fillText(`Pos:`, .5, .7, 'center');
+  //   g2.fillText(`${window.player_position.map(p => p.toFixed(2))}`, .5, .6, 'center');
+  
+  // });
 
   model.animate(() => {
+    // debugHud.hud().scale(1, 1, .0001);
+    
+    let lx = moveSpeed*joyStickState.left.x;
+      let ly = moveSpeed*joyStickState.left.y;
+      let rx = joyStickState.right.x;
+      let ry = joyStickState.right.y;
 
+      let Rx = sceneRotation[1];
+      let Ry = sceneRotation[3];
+      if(rx < 0){
+         quat.rotateY(sceneRotation, sceneRotation, -rotateSpeed*0.05);
+      }
+      else if(rx > 0){
+         quat.rotateY(sceneRotation, sceneRotation, rotateSpeed*0.05);
+      }
+      
+      if(Math.abs(Rx) < .3){
+         window.player_position[2] -= ly;
+         window.player_position[0] -= lx;
+      }
+      else if(Math.abs(Rx) > .9){
+        window.player_position[2] += ly;
+        window.player_position[0] += lx;
+      }
+      else if(Rx*Ry <0){//left
+        window.player_position[0] -= ly;
+        window.player_position[2] += lx;
+      }
+      else{//right
+        window.player_position[0] += ly;
+        window.player_position[2] -= lx;
+      }
+ 
+      global.gltfRoot.rotation = sceneRotation; // Apply the scene rotation to the root node
+      gltf1.rotation = rotation1;
+    
+      gltf1.translation = window.player_position;
     /**
      * ===================
      * TASK 1 CODE
@@ -209,22 +472,40 @@ export const init = async model => {
      */
     const targetPos = targetBox.getGlobalMatrix().slice(12,15);
     const mlPos = controllerMatrix.left.slice(12,15);
-
+    
     sampleTask1Objs.forEach(obj => {
       obj.handleMove(mlPos)
       obj.setMatrix(obj.pos).scale(OBJ_SIZE)
-
+    
       if (obj.id === TARGET_ID) {
         const objToTargetDistance = cg.distance(obj.pos.slice(12,15), targetPos)
         const isObjInTarget = Math.abs(objToTargetDistance) < TARGET_SIZE;
-
+    
         if (isObjInTarget) {
           targetBox.color(0, 1, 0)
+    
+          if (alert !== null) {
+            window.clay.model.remove(hudMenu);
+            alert = null;
+          }
+    
+          alert = "ResolvedAlert"; 
+          console.log(alert)
+    
+          hudMenu = window.clay.model.add('cube').texture(() => {
+            g2.setColor([0, 1, 0, (1 + Math.sin(1.5 * window.clay.model.time)) / 2]);
+            g2.fillRect(0, 0, 1, 1);
+            g2.setColor('black');
+            g2.fillText('Spaceship is stable!', .5, .5, 'center');
+          })
+          hudMenu.move(0, 1.25, 3).scale(1, 1, .0001).turnY(Math.PI)
+    
         } else {
           targetBox.color(1, 1, 1)
         }
       }
     })
+    
 
     /**
      * ===================
@@ -234,6 +515,13 @@ export const init = async model => {
     let rightTrigger = buttonState.right[0].pressed
 
     sampleTask2Buttons.forEach((button, i) => {
+
+      // remove buttons if task is complete
+      if (sampleTask2.isComplete) {
+        sampleTask2.remove(button)
+        return;
+      }
+
       button.identity()
         .move(...button.pos)
         .scale(SIMON_BUTTON_SIZE, SIMON_BUTTON_SIZE, 0.1)
@@ -259,6 +547,11 @@ export const init = async model => {
 
         if (hitButton.id === expectedColor) {
           predictionSequence.push(hitButton.id)
+
+          // If puzzle is solved, set isComplete to true
+          if (predictionSequence.length === targetSequence.length) {
+            sampleTask2.isComplete = true;
+          }
         } else {
           predictionSequence = []
         }
@@ -274,11 +567,17 @@ export const init = async model => {
       }
     })
 
-    /**
-     * ===================
-     * TASK 3 CODE
-     * ===================
-     */
+    // Render solution to Task 1 if Task 2 is complete
+    if (sampleTask2.isComplete) {
+      sampleTask2Output.identity()
+        .move(0, -1.75, 0)
+        .turnY(model.time * 0.8)
+        .opacity(1)
+    } else {
+      sampleTask2Output.identity()
+        .scale(0)
+        .opacity(0)
+    }
 
   });
 }
